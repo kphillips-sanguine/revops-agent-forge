@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: agentforge
+      POSTGRES_USER: agentforge
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-localdev}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentforge"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./agent-platform-api
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://agentforge:${DB_PASSWORD:-localdev}@db:5432/agentforge
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      N8N_BASE_URL: ${N8N_BASE_URL:-http://localhost:5678}
+      N8N_API_KEY: ${N8N_API_KEY:-}
+      ENVIRONMENT: development
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./agent-platform-api:/app
+
+  frontend:
+    build:
+      context: ./agent-platform-ui
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000
+    volumes:
+      - ./agent-platform-ui/src:/app/src
+      - ./agent-platform-ui/public:/app/public
+
+volumes:
+  pgdata:
