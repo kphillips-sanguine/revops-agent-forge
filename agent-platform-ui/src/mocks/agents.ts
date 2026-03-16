@@ -6,7 +6,73 @@ export const mockAgents: Agent[] = [
     name: 'Overdue Invoice Reminder',
     version: 3,
     status: 'active',
-    definition_md: `# Agent: Overdue Invoice Reminder\n\n## Description\nMonitors HubSpot for overdue invoices and sends Slack reminders to account owners.\n\n## Instructions\n1. Query HubSpot for invoices past due date\n2. Group by account owner\n3. Send Slack DM to each owner with their overdue invoice list\n4. Post summary to #finance channel\n\n## Tools\n- hubspot_query\n- slack_notify\n\n## Schedule\nDaily at 9:00 AM EST\n\n## Inputs\n- days_overdue_threshold: 7`,
+    definition_md: `# Agent: Overdue Invoice Reminder
+
+## Metadata
+- **ID:** 550e8400-e29b-41d4-a716-446655440001
+- **Version:** 3
+- **Author:** kevin@sanguinebio.com
+- **Created:** 2025-11-15T10:00:00Z
+- **Status:** active
+
+## Description
+Checks Salesforce daily for invoices past their due date and sends a summary
+to the #finance Slack channel. Helps the finance team stay on top of collections
+without manually running reports.
+
+## Persona
+Professional and concise. Use bullet points for clarity. Include invoice
+numbers and amounts for easy reference. Flag anything over 90 days as urgent.
+
+## Instructions
+Query Salesforce for all open invoices where the due date has passed.
+Group them by age buckets and format a clear summary for the finance team.
+
+### Steps
+1. Query Salesforce for all Invoice__c records where Status__c = 'Open'
+   and Due_Date__c < TODAY
+2. Group results into buckets: 1-30 days, 31-60 days, 61-90 days, 90+ days
+3. Calculate total outstanding amount per bucket
+4. Format a Slack message with the summary
+5. If any invoices are 90+ days overdue, prefix the message with ":rotating_light: URGENT"
+6. Send the summary to the #finance Slack channel
+
+### Decision Logic
+- **If** no overdue invoices found: Send "All clear — no overdue invoices today! :white_check_mark:"
+- **If** total overdue > $100,000: Also send a DM to the CFO
+- **Default:** Send standard summary to #finance
+
+## Tools
+- **salesforce_query**: Query Invoice__c records with SOQL
+- **slack_notify**: Send formatted messages to Slack channels
+
+## Schedule
+- **Type:** cron
+- **Expression:** 0 8 * * 1-5
+- **Timezone:** America/Denver
+
+## Inputs
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| (none — this agent is self-contained) | | | |
+
+## Outputs
+| Field | Type | Description |
+|-------|------|-------------|
+| summary | string | Formatted overdue invoice summary |
+| total_overdue | number | Total dollar amount overdue |
+| invoice_count | integer | Number of overdue invoices |
+| urgent | boolean | True if any invoice is 90+ days overdue |
+
+## Constraints
+- Max LLM calls: 10
+- Max execution time: 120
+- Max tokens per call: 2048
+- Retry on failure: yes
+- Max retries: 2
+
+## Tags
+finance, salesforce, daily, notifications, invoices`,
     guardrails_md: 'Do not send more than 50 notifications per run. Skip invoices under $100.',
     tools_allowed: ['hubspot_query', 'slack_notify'],
     schedule: { type: 'cron', value: '0 9 * * *', timezone: 'America/New_York', enabled: true },
@@ -24,7 +90,93 @@ export const mockAgents: Agent[] = [
     name: 'Case Triage Bot',
     version: 2,
     status: 'active',
-    definition_md: `# Agent: Case Triage Bot\n\n## Description\nAutomatically triages incoming Salesforce cases by priority and routes to appropriate team.\n\n## Instructions\n1. Poll for new unassigned cases\n2. Analyze case subject and description\n3. Assign priority (P1-P4) based on keywords and customer tier\n4. Route to correct team queue\n5. Send Slack alert for P1/P2 cases\n\n## Tools\n- salesforce_query\n- sf_record_update\n- slack_notify\n\n## Schedule\nEvery 15 minutes\n\n## Inputs\n- None (polls automatically)`,
+    definition_md: `# Agent: Case Triage Bot
+
+## Metadata
+- **ID:** 550e8400-e29b-41d4-a716-446655440002
+- **Version:** 2
+- **Author:** kevin@sanguinebio.com
+- **Created:** 2025-12-01T08:00:00Z
+- **Status:** active
+
+## Description
+Automatically triages new Salesforce Cases by analyzing the subject and
+description, assigning priority, suggesting a category, and routing to
+the appropriate queue. Runs on every new case creation via webhook.
+
+## Persona
+Analytical and precise. When providing triage reasoning, be specific about
+which keywords or patterns led to the classification. Never guess — if
+uncertain about priority, default to Medium and flag for human review.
+
+## Instructions
+Receive a new Case payload, analyze its content, classify it, and update
+the Case record in Salesforce with triage results.
+
+### Steps
+1. Receive the new Case data (Id, Subject, Description, Contact info)
+2. Analyze the Subject and Description for urgency indicators:
+   - Keywords: "down", "outage", "urgent", "ASAP", "broken", "error", "crash"
+   - Sentiment: negative/frustrated language
+   - Business impact: mentions of revenue, customers, deadlines
+3. Classify Priority: Critical / High / Medium / Low
+4. Classify Category: Bug, Feature Request, Question, Access Request, Data Issue
+5. Determine routing queue based on category:
+   - Bug → Engineering Support
+   - Feature Request → Product Team
+   - Question → Tier 1 Support
+   - Access Request → IT Admin
+   - Data Issue → Data Operations
+6. Update the Case in Salesforce with:
+   - Priority (if not already set by submitter)
+   - Case_Category__c
+   - Triage_Notes__c (reasoning for classification)
+   - OwnerId (route to queue)
+7. If Priority = Critical, also send a Slack alert to #critical-cases
+
+### Decision Logic
+- **If** Subject contains "outage" or "down" AND Description mentions production: Priority = Critical
+- **If** Contact is a VIP account (check Account.VIP__c): Bump priority by one level
+- **If** Description is empty or too vague to classify: Set Priority = Medium, add Triage_Notes = "Needs manual review — insufficient detail"
+- **Default:** Use LLM analysis for classification
+
+## Tools
+- **salesforce_query**: Look up Case details, Contact info, Account VIP status
+- **sf_record_update**: Update Case fields (Priority, Category, Notes, Owner)
+- **slack_notify**: Alert #critical-cases for Critical priority
+
+## Schedule
+- **Type:** webhook
+- **Webhook Path:** /trigger/case-triage
+- **Event Source:** Salesforce Platform Event (New_Case__e)
+
+## Inputs
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| case_id | string | yes | Salesforce Case record ID |
+| subject | string | yes | Case subject line |
+| description | string | no | Case description body |
+| contact_id | string | no | Contact who submitted the case |
+| account_id | string | no | Associated Account ID |
+
+## Outputs
+| Field | Type | Description |
+|-------|------|-------------|
+| priority | string | Assigned priority (Critical/High/Medium/Low) |
+| category | string | Assigned category |
+| queue | string | Routing destination |
+| triage_notes | string | Reasoning for the classification |
+| needs_review | boolean | True if manual review is recommended |
+
+## Constraints
+- Max LLM calls: 5
+- Max execution time: 60
+- Max tokens per call: 2048
+- Retry on failure: yes
+- Max retries: 1
+
+## Tags
+salesforce, cases, triage, automation, webhook, support`,
     guardrails_md: 'Never auto-close cases. P1 cases must always generate a Slack alert.',
     tools_allowed: ['salesforce_query', 'sf_record_update', 'slack_notify'],
     schedule: { type: 'interval', value: '15m', enabled: true },
@@ -42,7 +194,85 @@ export const mockAgents: Agent[] = [
     name: 'Weekly Sales Report',
     version: 1,
     status: 'pending_review',
-    definition_md: `# Agent: Weekly Sales Report\n\n## Description\nGenerates a weekly sales performance report and distributes via email and Slack.\n\n## Instructions\n1. Query Salesforce for closed deals this week\n2. Calculate pipeline metrics\n3. Generate formatted report\n4. Email to sales leadership\n5. Post summary to #sales-updates\n\n## Tools\n- salesforce_query\n- email_send\n- slack_notify\n- google_sheets_read\n\n## Schedule\nEvery Friday at 5:00 PM EST`,
+    definition_md: `# Agent: Weekly Sales Report
+
+## Metadata
+- **ID:** 550e8400-e29b-41d4-a716-446655440003
+- **Version:** 1
+- **Author:** sarah@sanguinebio.com
+- **Created:** 2026-03-10T11:00:00Z
+- **Status:** pending_review
+
+## Description
+Generates a comprehensive weekly sales performance report by pulling data
+from Salesforce and Google Sheets, then distributes via email and Slack.
+Provides leadership with pipeline visibility without manual report building.
+
+## Persona
+Data-driven and thorough. Present numbers clearly with context — compare
+to previous week and targets. Use tables and bullet points for readability.
+Highlight wins and flag concerns diplomatically.
+
+## Instructions
+Compile sales metrics for the current week, compare against targets,
+and distribute a formatted report to stakeholders.
+
+### Steps
+1. Query Salesforce for all Opportunities closed this week (Closed Won + Closed Lost)
+2. Query Salesforce for pipeline changes (new opps, stage changes, amount changes)
+3. Read target numbers from the Sales Targets Google Sheet
+4. Calculate key metrics:
+   - Total Closed Won revenue
+   - Win rate (Closed Won / Total Closed)
+   - Average deal size
+   - Pipeline created this week
+   - Pipeline coverage ratio
+5. Compare metrics against weekly targets from Google Sheet
+6. Format report with sections: Executive Summary, Wins, Losses, Pipeline Changes, Forecast
+7. Email full report to sales-leadership@sanguinebio.com
+8. Post executive summary to #sales-updates Slack channel
+
+### Decision Logic
+- **If** weekly revenue exceeds target by >20%: Add celebration emoji and highlight top deals
+- **If** weekly revenue is below target by >20%: Flag as "Needs Attention" with contributing factors
+- **If** pipeline coverage < 3x: Add warning about insufficient pipeline
+- **Default:** Standard report format
+
+## Tools
+- **salesforce_query**: Pull opportunity and pipeline data via SOQL
+- **email_send**: Send formatted HTML report to leadership distribution list
+- **slack_notify**: Post summary to #sales-updates channel
+- **google_sheets_read**: Read weekly/monthly targets from Sales Targets spreadsheet
+
+## Schedule
+- **Type:** cron
+- **Expression:** 0 17 * * 5
+- **Timezone:** America/New_York
+
+## Inputs
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| week_start | date | no | Override start of reporting week (default: last Monday) |
+| include_forecast | boolean | no | Include next-week forecast section (default: true) |
+
+## Outputs
+| Field | Type | Description |
+|-------|------|-------------|
+| report_html | string | Full HTML formatted report |
+| summary | string | Executive summary text |
+| total_closed_won | number | Total revenue closed this week |
+| win_rate | number | Win rate percentage |
+| pipeline_created | number | New pipeline dollar amount |
+
+## Constraints
+- Max LLM calls: 15
+- Max execution time: 180
+- Max tokens per call: 4096
+- Retry on failure: yes
+- Max retries: 2
+
+## Tags
+sales, reporting, weekly, salesforce, google-sheets`,
     guardrails_md: null,
     tools_allowed: ['salesforce_query', 'email_send', 'slack_notify', 'google_sheets_read'],
     schedule: { type: 'cron', value: '0 17 * * 5', timezone: 'America/New_York', enabled: false },

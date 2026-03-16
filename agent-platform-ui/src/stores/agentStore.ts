@@ -17,6 +17,9 @@ interface AgentState {
   setFilter: (filters: Partial<AgentFilters>) => void;
   getAgentById: (id: string) => Agent | undefined;
   getFilteredAgents: () => Agent[];
+  updateAgent: (id: string, updates: Partial<Agent>) => void;
+  updateAgentStatus: (id: string, status: AgentStatus) => void;
+  updateAgentDefinition: (id: string, definition_md: string) => void;
 }
 
 export const useAgentStore = create<AgentState>((set, get) => ({
@@ -71,5 +74,36 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     }
 
     return filtered;
+  },
+
+  updateAgent: (id, updates) => {
+    set((state) => ({
+      agents: state.agents.map((a) =>
+        a.id === id ? { ...a, ...updates, updated_at: new Date().toISOString() } : a,
+      ),
+    }));
+  },
+
+  updateAgentStatus: (id, status) => {
+    set((state) => ({
+      agents: state.agents.map((a) =>
+        a.id === id
+          ? {
+              ...a,
+              status,
+              updated_at: new Date().toISOString(),
+              approved_by: status === 'approved' || status === 'active' ? 'kevin@sanguinebio.com' : a.approved_by,
+            }
+          : a,
+      ),
+    }));
+  },
+
+  updateAgentDefinition: (id, definition_md) => {
+    set((state) => ({
+      agents: state.agents.map((a) =>
+        a.id === id ? { ...a, definition_md, updated_at: new Date().toISOString() } : a,
+      ),
+    }));
   },
 }));
