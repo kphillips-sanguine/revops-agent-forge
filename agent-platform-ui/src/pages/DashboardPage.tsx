@@ -12,6 +12,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { useAgentStore } from '../stores/agentStore';
 import { mockExecutions } from '../mocks/executions';
 import StatusBadge from '../components/StatusBadge';
+import { SkeletonCard, SkeletonTable } from '../components/Skeleton';
 
 function StatCard({
   label,
@@ -46,7 +47,11 @@ function StatCard({
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { agents, fetchAgents } = useAgentStore();
+  const { agents, isLoading, fetchAgents } = useAgentStore();
+
+  useEffect(() => {
+    document.title = 'Dashboard | AgentForge';
+  }, []);
 
   useEffect(() => {
     if (agents.length === 0) fetchAgents();
@@ -112,6 +117,18 @@ export default function DashboardPage() {
       </div>
 
       {/* Stat Cards */}
+      {isLoading ? (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </div>
+          <SkeletonTable rows={5} cols={6} />
+        </>
+      ) : (
+      <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard
           label="Active Agents"
@@ -251,6 +268,8 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }

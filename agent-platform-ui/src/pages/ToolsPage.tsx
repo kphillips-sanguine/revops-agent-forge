@@ -1,6 +1,11 @@
+import { useEffect } from 'react';
 import { Wrench } from 'lucide-react';
 
 export default function ToolsPage() {
+  useEffect(() => {
+    document.title = 'Tools | AgentForge';
+  }, []);
+
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">

@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import {
   Bot,
   Plus,
@@ -16,6 +17,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { useAgentStore } from '../stores/agentStore';
 import { mockExecutions } from '../mocks/executions';
 import StatusBadge from '../components/StatusBadge';
+import EmptyState from '../components/EmptyState';
+import { SkeletonTable } from '../components/Skeleton';
 import type { AgentStatus, Agent } from '../types/agent';
 
 type SortField = 'name' | 'status' | 'last_execution_at' | 'execution_count' | 'estimated_cost';
@@ -32,10 +35,14 @@ const STATUS_OPTIONS: { value: AgentStatus | 'all'; label: string }[] = [
 
 export default function AgentsPage() {
   const navigate = useNavigate();
-  const { agents, fetchAgents, filters, setFilter, getFilteredAgents } = useAgentStore();
+  const { agents, isLoading, fetchAgents, filters, setFilter, getFilteredAgents, updateAgentStatus } = useAgentStore();
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDir, setSortDir] = useState<SortDirection>('asc');
   const [searchInput, setSearchInput] = useState('');
+
+  useEffect(() => {
+    document.title = 'Agents | AgentForge';
+  }, []);
 
   useEffect(() => {
     if (agents.length === 0) fetchAgents();
@@ -147,7 +154,8 @@ export default function AgentsPage() {
         icon: Ban,
         label: 'Disable',
         onClick: () => {
-          /* placeholder */
+          updateAgentStatus(agent.id, 'disabled');
+          toast.success(`${agent.name} disabled`);
         },
       });
     }
@@ -261,15 +269,26 @@ export default function AgentsPage() {
       </div>
 
       {/* Agents Table */}
+      {isLoading ? (
+        <SkeletonTable rows={6} cols={9} />
+      ) : (
       <div className="bg-card-bg border border-card-border rounded-lg overflow-hidden">
         {sortedAgents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <Inbox className="w-10 h-10 text-gray-600 mb-3" />
-            <p className="text-gray-400 text-sm mb-1">No agents match your filters</p>
-            <p className="text-gray-600 text-xs">
-              Try adjusting your search or filter criteria
-            </p>
-          </div>
+          agents.length === 0 ? (
+            <EmptyState
+              icon={<Bot className="w-10 h-10" />}
+              title="Create your first agent"
+              description="Get started by building an agent in the Builder."
+              actionLabel="Go to Builder"
+              actionTo="/builder"
+            />
+          ) : (
+            <EmptyState
+              icon={<Inbox className="w-10 h-10" />}
+              title="No agents match your filters"
+              description="Try adjusting your search or filter criteria."
+            />
+          )
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -374,6 +393,7 @@ export default function AgentsPage() {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

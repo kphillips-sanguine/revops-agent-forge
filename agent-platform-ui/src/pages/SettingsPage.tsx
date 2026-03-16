@@ -1,6 +1,11 @@
+import { useEffect } from 'react';
 import { Settings } from 'lucide-react';
 
 export default function SettingsPage() {
+  useEffect(() => {
+    document.title = 'Settings | AgentForge';
+  }, []);
+
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">

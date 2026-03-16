@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
+import toast from 'react-hot-toast';
 import {
   Bot,
-  ArrowLeft,
   Edit3,
   Send,
   Trash2,
@@ -29,6 +29,7 @@ import {
   GitCommit,
   Settings,
 } from 'lucide-react';
+import Breadcrumbs from '../components/Breadcrumbs';
 import StatusBadge from '../components/StatusBadge';
 import ValidationPanel, { validateAgentMd } from '../components/ValidationPanel';
 import ExecutionHistoryTab from '../components/ExecutionHistoryTab';
@@ -95,6 +96,10 @@ export default function AgentDetailPage() {
   const agent = id ? getAgentById(id) : undefined;
 
   useEffect(() => {
+    document.title = agent ? `${agent.name} | AgentForge` : 'Agent | AgentForge';
+  }, [agent]);
+
+  useEffect(() => {
     if (agent) {
       setEditedContent(agent.definition_md);
     }
@@ -105,18 +110,36 @@ export default function AgentDetailPage() {
     : [];
 
   const handleStatusChange = useCallback((newStatus: AgentStatus) => {
-    if (id) updateAgentStatus(id, newStatus);
+    if (id) {
+      updateAgentStatus(id, newStatus);
+      const labels: Record<AgentStatus, string> = {
+        draft: 'Returned to draft',
+        pending_review: 'Submitted for review',
+        approved: 'Agent approved',
+        active: 'Agent activated',
+        disabled: 'Agent disabled',
+      };
+      toast.success(labels[newStatus]);
+    }
   }, [id, updateAgentStatus]);
 
   const handleSave = useCallback(() => {
     if (id) {
       updateAgentDefinition(id, editedContent);
       setIsEditing(false);
+      toast.success('Definition saved');
     }
   }, [id, editedContent, updateAgentDefinition]);
 
   const handleValidate = useCallback(() => {
-    setValidationResults(validateAgentMd(editedContent));
+    const results = validateAgentMd(editedContent);
+    setValidationResults(results);
+    const errors = results.filter((r) => r.status === 'error').length;
+    if (errors > 0) {
+      toast.error(`Validation failed: ${errors} error(s)`);
+    } else {
+      toast.success('Validation passed');
+    }
   }, [editedContent]);
 
   const handleReject = useCallback(() => {
@@ -124,8 +147,24 @@ export default function AgentDetailPage() {
       updateAgentStatus(id, 'draft');
       setShowRejectModal(false);
       setRejectReason('');
+      toast.success('Agent rejected and returned to draft');
     }
   }, [id, updateAgentStatus]);
+
+  // Keyboard shortcut: Ctrl+S to save
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        if (isEditing && id) handleSave();
+      }
+      if (e.key === 'Escape' && showRejectModal) {
+        setShowRejectModal(false);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isEditing, id, handleSave, showRejectModal]);
 
   const canEdit = agent && (agent.status === 'draft' || agent.status === 'approved' || agent.status === 'disabled');
 
@@ -161,14 +200,13 @@ export default function AgentDetailPage() {
 
   return (
     <div className="space-y-6">
-      {/* Back nav */}
-      <button
-        onClick={() => navigate('/agents')}
-        className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-300"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Back to Agents
-      </button>
+      <Breadcrumbs
+        items={[
+          { label: 'Dashboard', to: '/' },
+          { label: 'Agents', to: '/agents' },
+          { label: agent.name },
+        ]}
+      />
 
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">

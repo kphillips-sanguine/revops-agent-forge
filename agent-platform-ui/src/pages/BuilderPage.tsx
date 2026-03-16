@@ -1,15 +1,18 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
+import toast from 'react-hot-toast';
 import {
   Plus,
   Save,
   ShieldCheck,
   RotateCcw,
   GripVertical,
+  FlaskConical,
 } from 'lucide-react';
 import BuilderChat from '../components/builder/BuilderChat';
 import ToolBrowser from '../components/builder/ToolBrowser';
+import SimulationPanel from '../components/builder/SimulationPanel';
 import ValidationPanel, { validateAgentMd } from '../components/ValidationPanel';
 import { useBuilderStore } from '../stores/builderStore';
 import { useAgentStore } from '../stores/agentStore';
@@ -20,10 +23,15 @@ export default function BuilderPage() {
   const { agents, fetchAgents } = useAgentStore();
 
   const [toolBrowserOpen, setToolBrowserOpen] = useState(false);
+  const [simulationOpen, setSimulationOpen] = useState(false);
   const [validationResults, setValidationResults] = useState<ReturnType<typeof validateAgentMd> | null>(null);
   const [splitPercent, setSplitPercent] = useState(40);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
+
+  useEffect(() => {
+    document.title = 'Builder | AgentForge';
+  }, []);
 
   // Ensure agent store is loaded for save-as-draft
   useEffect(() => {
@@ -79,7 +87,14 @@ export default function BuilderPage() {
 
   const handleValidate = useCallback(() => {
     if (currentDefinition) {
-      setValidationResults(validateAgentMd(currentDefinition));
+      const results = validateAgentMd(currentDefinition);
+      setValidationResults(results);
+      const errors = results.filter((r) => r.status === 'error').length;
+      if (errors > 0) {
+        toast.error(`Validation failed: ${errors} error(s) found`);
+      } else {
+        toast.success('Validation passed');
+      }
     }
   }, [currentDefinition]);
 
@@ -129,6 +144,8 @@ export default function BuilderPage() {
       agents: [...state.agents, newAgent],
     }));
 
+    toast.success('Agent saved as draft');
+
     // Reset builder and navigate
     reset();
     navigate(`/agents/${newId}`);
@@ -137,7 +154,20 @@ export default function BuilderPage() {
   const handleReset = useCallback(() => {
     reset();
     setValidationResults(null);
+    toast.success('Builder reset');
   }, [reset]);
+
+  // Keyboard shortcuts: Ctrl+S to save
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        if (currentDefinition) handleSaveAsDraft();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [currentDefinition, handleSaveAsDraft]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-73px)]">
@@ -155,6 +185,14 @@ export default function BuilderPage() {
 
         {/* Action buttons */}
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setSimulationOpen(true)}
+            disabled={!currentDefinition}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-300 bg-white/[0.06] hover:bg-white/[0.1] rounded-lg border border-card-border disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            <FlaskConical className="w-3.5 h-3.5" />
+            Simulate
+          </button>
           <button
             onClick={handleReset}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-400 hover:text-gray-300 bg-white/[0.04] hover:bg-white/[0.08] rounded-lg border border-card-border transition-colors"
@@ -261,6 +299,13 @@ export default function BuilderPage() {
           )}
         </div>
       </div>
+
+      {/* Simulation Panel Modal */}
+      <SimulationPanel
+        isOpen={simulationOpen}
+        onClose={() => setSimulationOpen(false)}
+        definition={currentDefinition || ''}
+      />
     </div>
   );
 }
