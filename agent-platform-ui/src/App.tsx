@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import AppShell from './components/layout/AppShell';
 import ErrorBoundary from './components/ErrorBoundary';
 import DashboardPage from './pages/DashboardPage';
@@ -27,10 +27,19 @@ const queryClient = new QueryClient({
 
 function ProtectedRoute() {
   const { isAuthenticated, checkAuth } = useAuthStore();
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    checkAuth();
+    checkAuth().finally(() => setChecking(false));
   }, [checkAuth]);
+
+  if (checking) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#0B0D14]">
+        <div className="text-gray-400 text-sm">Loading...</div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
