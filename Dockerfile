@@ -1,5 +1,5 @@
 # ==============================================================
-# AgentForge — Single-container deployment (App + PostgreSQL)
+# AgentForge — Sevalla Deployment (External PostgreSQL)
 # ==============================================================
 
 # Stage 1: Build frontend
@@ -10,15 +10,13 @@ RUN npm ci --legacy-peer-deps 2>/dev/null || npm install --legacy-peer-deps
 COPY agent-platform-ui/ ./
 RUN npm run build
 
-# Stage 2: Python backend + PostgreSQL + serve frontend
+# Stage 2: Python backend + serve frontend
 FROM python:3.12-slim
 WORKDIR /app
 
-# Install system dependencies (PostgreSQL server + client + supervisor)
+# Install system dependencies (psql client for seed check)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    postgresql \
     postgresql-client \
-    supervisor \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
@@ -31,17 +29,10 @@ COPY agent-platform-api/ .
 # Copy frontend build into static/ directory for FastAPI to serve
 COPY --from=frontend-build /frontend/dist ./static
 
-# Copy deployment scripts (sed fixes Windows CRLF line endings)
+# Copy startup script (sed fixes Windows CRLF line endings)
 COPY scripts/startup.sh /app/startup.sh
-COPY scripts/supervisord.conf /etc/supervisor/conf.d/agentforge.conf
-RUN sed -i 's/\r$//' /app/startup.sh /etc/supervisor/conf.d/agentforge.conf \
-    && chmod +x /app/startup.sh
+RUN sed -i 's/\r$//' /app/startup.sh && chmod +x /app/startup.sh
 
-# Create PostgreSQL data directory with correct permissions
-RUN mkdir -p /var/lib/postgresql/data /run/postgresql \
-    && chown -R postgres:postgres /var/lib/postgresql /run/postgresql
-
-# Expose port (Sevalla routes traffic to this port)
 EXPOSE 8000
 
 CMD ["/app/startup.sh"]
