@@ -1,14 +1,14 @@
 """Add password_hash to users
 
-Revision ID: 003
-Revises: 002
+Revision ID: 003_add_password_hash
+Revises: 002_admin_systems
 Create Date: 2026-03-17
 """
 from alembic import op
 import sqlalchemy as sa
 
-revision = "003"
-down_revision = "002"
+revision = "003_add_password_hash"
+down_revision = "002_admin_systems"
 branch_labels = None
 depends_on = None
 
