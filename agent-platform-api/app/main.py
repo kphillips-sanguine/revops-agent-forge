@@ -1,8 +1,9 @@
 import os
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
@@ -42,7 +43,19 @@ def create_app() -> FastAPI:
     # Serve frontend static files in production
     static_dir = Path(__file__).resolve().parent.parent / "static"
     if static_dir.is_dir():
-        application.mount("/", StaticFiles(directory=str(static_dir), html=True), name="frontend")
+        # Mount static assets (JS, CSS, images)
+        application.mount("/assets", StaticFiles(directory=str(static_dir / "assets")), name="assets")
+
+        # SPA catch-all: serve index.html for any non-API route
+        @application.get("/{full_path:path}")
+        async def serve_spa(request: Request, full_path: str):
+            # Don't catch API routes
+            if full_path.startswith("api/"):
+                return {"detail": "Not Found"}
+            index_file = static_dir / "index.html"
+            if index_file.is_file():
+                return FileResponse(str(index_file))
+            return {"detail": "Frontend not built"}
 
     return application
 
