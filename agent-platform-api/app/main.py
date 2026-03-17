@@ -1,8 +1,12 @@
+import os
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
-from app.routers import agents, auth, builder, executions, tools
+from app.routers import agents, audit, auth, builder, executions, stats, tools
 
 
 def create_app() -> FastAPI:
@@ -24,14 +28,21 @@ def create_app() -> FastAPI:
     # Routers
     application.include_router(auth.router)
     application.include_router(agents.router)
+    application.include_router(audit.router)
     application.include_router(builder.router)
     application.include_router(executions.router)
+    application.include_router(stats.router)
     application.include_router(tools.router)
 
     # Health check
     @application.get("/api/health", tags=["health"])
     async def health_check() -> dict:
         return {"status": "healthy", "environment": settings.ENVIRONMENT}
+
+    # Serve frontend static files in production
+    static_dir = Path(__file__).resolve().parent.parent / "static"
+    if static_dir.is_dir():
+        application.mount("/", StaticFiles(directory=str(static_dir), html=True), name="frontend")
 
     return application
 

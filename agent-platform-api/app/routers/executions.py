@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_current_user, get_db, verify_api_key
+from app.dependencies import get_current_user, get_db, require_role, verify_api_key
 from app.schemas.auth import UserResponse
 from app.schemas.execution import (
     ExecutionDetail,
@@ -88,10 +88,10 @@ async def get_execution_logs(
 @router.post("/{execution_id}/cancel", response_model=ExecutionResponse)
 async def cancel_execution(
     execution_id: UUID,
-    user: UserResponse = Depends(get_current_user),
+    user: UserResponse = Depends(require_role("admin", "revops")),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Cancel a running execution."""
+    """Cancel a running execution. Admin or revops only."""
     try:
         result = await execution_service.cancel_execution(db, execution_id)
         if result is None:

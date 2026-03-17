@@ -13,6 +13,7 @@ import ExecutionDetailPage from './pages/ExecutionDetailPage';
 import ToolsPage from './pages/ToolsPage';
 import SettingsPage from './pages/SettingsPage';
 import LoginPage from './pages/LoginPage';
+import NotFoundPage from './pages/NotFoundPage';
 import { useAuthStore } from './stores/authStore';
 
 const queryClient = new QueryClient({
@@ -57,6 +58,7 @@ export default function App() {
                 <Route path="settings" element={<SettingsPage />} />
               </Route>
             </Route>
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </ErrorBoundary>
         <Toaster
