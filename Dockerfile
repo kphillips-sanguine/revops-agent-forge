@@ -2,7 +2,7 @@
 FROM node:22-alpine AS frontend-build
 WORKDIR /frontend
 COPY agent-platform-ui/package.json agent-platform-ui/package-lock.json* ./
-RUN npm install --frozen-lockfile 2>/dev/null || npm install
+RUN npm ci --legacy-peer-deps 2>/dev/null || npm install --legacy-peer-deps
 COPY agent-platform-ui/ ./
 RUN npm run build
 

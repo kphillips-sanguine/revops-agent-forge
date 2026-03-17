@@ -4,7 +4,12 @@ import asyncio
 import uuid
 from datetime import datetime, timezone
 
-from passlib.hash import bcrypt
+import bcrypt as _bcrypt
+
+class _BcryptHelper:
+    @staticmethod
+    def hash(password: str) -> str:
+        return _bcrypt.hashpw(password.encode('utf-8'), _bcrypt.gensalt()).decode('utf-8')
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -200,7 +205,7 @@ async def seed() -> None:
                 print(f"Tool '{tool_data['name']}' already exists, skipping.")
 
         # 3. Create default API key for n8n
-        key_hash = bcrypt.hash(DEFAULT_API_KEY)
+        key_hash = _BcryptHelper.hash(DEFAULT_API_KEY)
         existing_key = await session.execute(
             select(ApiKey).where(ApiKey.name == "n8n-default")
         )
