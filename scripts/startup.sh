@@ -4,10 +4,25 @@ set -e
 echo "=== AgentForge Startup ==="
 
 # ─────────────────────────────────────────────
+# Debug: show which env vars are set (redacted values)
+# ─────────────────────────────────────────────
+echo "Environment check:"
+echo "  DATABASE_URL: ${DATABASE_URL:+SET ($(echo $DATABASE_URL | cut -c1-30)...)}${DATABASE_URL:-NOT SET}"
+echo "  DB_HOST: ${DB_HOST:-NOT SET}"
+echo "  DB_USER: ${DB_USER:-NOT SET}"
+echo "  DB_NAME: ${DB_NAME:-NOT SET}"
+echo "  DB_PASSWORD: ${DB_PASSWORD:+SET}${DB_PASSWORD:-NOT SET}"
+echo "  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:+SET}${ANTHROPIC_API_KEY:-NOT SET}"
+echo "  JWT_SECRET: ${JWT_SECRET:+SET}${JWT_SECRET:-NOT SET}"
+echo "  ENVIRONMENT: ${ENVIRONMENT:-NOT SET}"
+
+# ─────────────────────────────────────────────
 # Validate required env vars
 # ─────────────────────────────────────────────
 if [ -z "$DATABASE_URL" ]; then
-    echo "ERROR: DATABASE_URL is required"
+    echo "ERROR: DATABASE_URL is required."
+    echo "Expected format: postgresql+asyncpg://user:pass@host:5432/dbname"
+    echo "Set this as an environment variable in Sevalla secrets."
     exit 1
 fi
 
