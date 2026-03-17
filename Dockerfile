@@ -31,10 +31,11 @@ COPY agent-platform-api/ .
 # Copy frontend build into static/ directory for FastAPI to serve
 COPY --from=frontend-build /frontend/dist ./static
 
-# Copy deployment scripts
+# Copy deployment scripts (sed fixes Windows CRLF line endings)
 COPY scripts/startup.sh /app/startup.sh
 COPY scripts/supervisord.conf /etc/supervisor/conf.d/agentforge.conf
-RUN chmod +x /app/startup.sh
+RUN sed -i 's/\r$//' /app/startup.sh /etc/supervisor/conf.d/agentforge.conf \
+    && chmod +x /app/startup.sh
 
 # Create PostgreSQL data directory with correct permissions
 RUN mkdir -p /var/lib/postgresql/data /run/postgresql \
