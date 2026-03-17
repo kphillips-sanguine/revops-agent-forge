@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
-from app.routers import agents, audit, auth, builder, executions, models, stats, tools
+from app.routers import admin, agents, audit, auth, builder, executions, models, stats, tools
 
 
 def create_app() -> FastAPI:
@@ -27,6 +27,7 @@ def create_app() -> FastAPI:
     )
 
     # Routers
+    application.include_router(admin.router)
     application.include_router(auth.router)
     application.include_router(agents.router)
     application.include_router(audit.router)

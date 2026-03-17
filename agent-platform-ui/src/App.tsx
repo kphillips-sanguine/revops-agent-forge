@@ -14,6 +14,10 @@ import ToolsPage from './pages/ToolsPage';
 import SettingsPage from './pages/SettingsPage';
 import LoginPage from './pages/LoginPage';
 import NotFoundPage from './pages/NotFoundPage';
+import AdminSystemsPage from './pages/admin/AdminSystemsPage';
+import AdminSystemDetailPage from './pages/admin/AdminSystemDetailPage';
+import AdminGuardrailsPage from './pages/admin/AdminGuardrailsPage';
+import AdminContextPage from './pages/admin/AdminContextPage';
 import { useAuthStore } from './stores/authStore';
 
 const queryClient = new QueryClient({
@@ -65,6 +69,10 @@ export default function App() {
                 <Route path="executions/:id" element={<ExecutionDetailPage />} />
                 <Route path="tools" element={<ToolsPage />} />
                 <Route path="settings" element={<SettingsPage />} />
+                <Route path="admin/systems" element={<AdminSystemsPage />} />
+                <Route path="admin/systems/:id" element={<AdminSystemDetailPage />} />
+                <Route path="admin/guardrails" element={<AdminGuardrailsPage />} />
+                <Route path="admin/context" element={<AdminContextPage />} />
               </Route>
             </Route>
             <Route path="*" element={<NotFoundPage />} />

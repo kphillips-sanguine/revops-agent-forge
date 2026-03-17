@@ -11,7 +11,7 @@ from app.schemas.builder import (
     ValidateRequest,
     ValidationResult,
 )
-from app.services import builder_service, simulation_service
+from app.services import admin_service, builder_service, simulation_service
 from app.services.tool_service import list_tools
 from app.services.validation_service import validate_agent_md
 
@@ -24,13 +24,18 @@ async def generate_agent(
     user: UserResponse = Depends(get_current_user),
 ) -> dict:
     """Generate or refine an Agent MD definition from natural language."""
-    # Fetch available tools from registry for context
+    # Fetch available tools and business context for the builder
     available_tools: list[dict] = []
+    business_context: str | None = None
     try:
         async with async_session_factory() as db:
             available_tools = await list_tools(db, enabled=True)
+            # Assemble business context from admin-managed data
+            ctx = await admin_service.assemble_builder_context(db)
+            if ctx and ctx.get("full_prompt_section", "").strip():
+                business_context = ctx["full_prompt_section"]
     except Exception:
-        # If DB is unavailable, proceed without tool context
+        # If DB is unavailable, proceed without context
         pass
 
     try:
@@ -39,6 +44,7 @@ async def generate_agent(
             conversation_history=request.conversation_history,
             current_definition=request.current_definition,
             available_tools=available_tools,
+            business_context=business_context,
         )
         return result
     except Exception as e:

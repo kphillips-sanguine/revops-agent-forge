@@ -203,6 +203,7 @@ async def generate_agent(
     conversation_history: list[dict[str, str]] | None = None,
     current_definition: str | None = None,
     available_tools: list[dict[str, Any]] | None = None,
+    business_context: str | None = None,
 ) -> dict[str, Any]:
     """Generate or refine an Agent MD definition using Claude.
 
@@ -220,9 +221,11 @@ async def generate_agent(
     if available_tools is None:
         available_tools = []
 
-    # Build system prompt with tools context
+    # Build system prompt with tools context and business context
     tools_context = _build_tools_context(available_tools)
     system_prompt = f"{BUILDER_SYSTEM_PROMPT}\n\n{tools_context}"
+    if business_context:
+        system_prompt += f"\n\n{business_context}"
 
     # Build messages
     messages = _build_messages(prompt, conversation_history, current_definition)
