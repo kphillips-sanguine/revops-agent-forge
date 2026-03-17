@@ -33,6 +33,6 @@ COPY --from=frontend-build /frontend/dist ./static
 COPY scripts/startup.sh /app/startup.sh
 RUN sed -i 's/\r$//' /app/startup.sh && chmod +x /app/startup.sh
 
-EXPOSE 8000
+EXPOSE ${PORT:-8000}
 
 CMD ["/app/startup.sh"]
