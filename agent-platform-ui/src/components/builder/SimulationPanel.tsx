@@ -11,6 +11,7 @@ import {
   AlertCircle,
   FlaskConical,
 } from 'lucide-react';
+import { simulateAgent } from '../../api/builder';
 import { runMockSimulation, type SimulationResult } from '../../mocks/simulation';
 import type { ExecutionStep } from '../../types/execution';
 
@@ -131,7 +132,57 @@ export default function SimulationPanel({ isOpen, onClose, definition }: Simulat
       } catch {
         // Use empty context on parse error
       }
-      const simResult = await runMockSimulation(definition, inputContext);
+
+      let simResult: SimulationResult;
+      try {
+        // Try real API first
+        const apiResult = await simulateAgent({
+          definition_md: definition,
+          mock_inputs: inputContext,
+        });
+        // Convert API response to SimulationResult shape for the UI
+        const steps: ExecutionStep[] = apiResult.timeline.map((entry, idx) => {
+          const stepType = entry.action === 'start' ? 'start'
+            : entry.action === 'tool_call' ? 'tool_call'
+            : entry.action === 'llm_call' ? 'llm_call'
+            : entry.action === 'complete' ? 'complete'
+            : 'error';
+          return {
+            id: `api_step_${idx}`,
+            type: stepType as ExecutionStep['type'],
+            timestamp: entry.timestamp,
+            duration_ms: entry.duration_ms,
+            message: entry.message,
+            status: entry.status as 'success' | 'failed' | undefined,
+            tool_call: entry.tool_call ? {
+              id: `api_tc_${idx}`,
+              tool_name: entry.tool_call.tool_name,
+              input_summary: entry.tool_call.input_summary,
+              input: entry.tool_call.input,
+              output: entry.tool_call.output,
+              status: entry.tool_call.status as 'success' | 'failed' | 'skipped',
+              duration_ms: entry.tool_call.duration_ms,
+              started_at: entry.timestamp,
+            } : undefined,
+          };
+        });
+        const totalDuration = steps.reduce((sum, s) => sum + (s.duration_ms ?? 0), 0);
+        simResult = {
+          status: apiResult.status as 'success' | 'failed',
+          duration_ms: totalDuration,
+          steps,
+          output: typeof apiResult.output === 'object' && apiResult.output
+            ? (apiResult.output as Record<string, unknown>).summary as string ?? JSON.stringify(apiResult.output)
+            : String(apiResult.output ?? ''),
+          total_tokens: apiResult.tokens_used,
+          estimated_cost: apiResult.tokens_used * 0.000015,
+          llm_calls: steps.filter((s) => s.type === 'llm_call').length || 1,
+        };
+      } catch {
+        // Fall back to mock simulation if API is unavailable
+        simResult = await runMockSimulation(definition, inputContext);
+      }
+
       setResult(simResult);
     } finally {
       setIsRunning(false);

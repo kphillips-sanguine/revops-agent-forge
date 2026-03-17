@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { generateAgent } from '../api/builder';
 import { mockBuilderGenerate } from '../mocks/builder';
 
 export interface ChatMessage {
@@ -55,26 +56,59 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
     }));
 
     try {
-      const { currentDefinition } = get();
-      const response = await mockBuilderGenerate(content, currentDefinition);
+      const { currentDefinition, messages } = get();
+
+      // Build conversation history from prior messages (excluding system messages)
+      const conversationHistory = messages
+        .filter((m) => m.role === 'user' || m.role === 'assistant')
+        .map((m) => ({ role: m.role, content: m.content }));
+
+      let definition: string;
+      let explanation: string;
+
+      try {
+        // Try real API first
+        const response = await generateAgent({
+          prompt: content,
+          conversation_history: conversationHistory,
+          current_definition: currentDefinition,
+        });
+        definition = response.definition_md;
+        explanation = response.explanation;
+
+        // Append warnings/suggestions to explanation if present
+        if (response.warnings.length > 0) {
+          explanation += '\n\n**Warnings:**\n' + response.warnings.map((w) => `- ${w}`).join('\n');
+        }
+        if (response.suggestions.length > 0) {
+          explanation +=
+            '\n\n**Suggestions:**\n' + response.suggestions.map((s) => `- ${s}`).join('\n');
+        }
+      } catch {
+        // Fall back to mock if API is unavailable
+        const mockResponse = await mockBuilderGenerate(content, currentDefinition);
+        definition = mockResponse.definition;
+        explanation = mockResponse.explanation;
+      }
 
       const assistantMsg: ChatMessage = {
         id: nextMsgId(),
         role: 'assistant',
-        content: response.explanation,
+        content: explanation,
         timestamp: new Date().toISOString(),
       };
 
       set((state) => ({
         messages: [...state.messages, assistantMsg],
-        currentDefinition: response.definition,
+        currentDefinition: definition,
         isGenerating: false,
       }));
     } catch {
       const errorMsg: ChatMessage = {
         id: nextMsgId(),
         role: 'assistant',
-        content: 'Sorry, something went wrong while generating the agent definition. Please try again.',
+        content:
+          'Sorry, something went wrong while generating the agent definition. Please try again.',
         timestamp: new Date().toISOString(),
       };
 
