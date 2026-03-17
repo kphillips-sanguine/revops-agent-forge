@@ -72,7 +72,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (!token) {
       // No token — check if backend is available, if not use dev mode
       try {
-        const response = await fetch('http://localhost:8000/api/health');
+        const response = await fetch('/api/health');
         if (!response.ok) throw new Error('Backend unavailable');
         // Backend is up but no token — need to login
         set({ user: null, isAuthenticated: false });
@@ -106,7 +106,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch {
       // API failed — try dev mode fallback
       try {
-        await fetch('http://localhost:8000/api/health');
+        await fetch('/api/health');
         // Backend is up but token is bad — need to re-login
         localStorage.removeItem('auth_token');
         set({ user: null, isAuthenticated: false });
