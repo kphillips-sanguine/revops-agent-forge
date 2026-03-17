@@ -10,6 +10,7 @@ from app.schemas.builder import (
     ValidateRequest,
     ValidationResult,
 )
+from app.services.validation_service import validate_agent_md
 
 router = APIRouter(prefix="/api/builder", tags=["builder"])
 
@@ -28,7 +29,7 @@ async def validate_definition(
     request: ValidateRequest,
 ) -> dict:
     """Validate an Agent MD definition against the schema."""
-    raise NotImplementedError("Validation service implemented in Phase B4")
+    return validate_agent_md(request.definition_md)
 
 
 @router.post("/simulate", response_model=SimulationResult)
