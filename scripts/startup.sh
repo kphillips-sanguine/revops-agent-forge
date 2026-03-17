@@ -82,6 +82,6 @@ fi
 # ─────────────────────────────────────────────
 # Start the app
 # ─────────────────────────────────────────────
-APP_PORT="${PORT:-8000}"
+APP_PORT="${PORT:-8080}"
 echo "Starting AgentForge API on port ${APP_PORT}..."
 exec uvicorn app.main:app --host 0.0.0.0 --port "${APP_PORT}" --workers 2
