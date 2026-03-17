@@ -16,6 +16,7 @@ export interface Agent {
   guardrails_md: string | null;
   tools_allowed: string[];
   schedule: AgentSchedule | null;
+  model_id: string | null;
   tags: string[];
   created_by: string;
   approved_by: string | null;
@@ -31,6 +32,7 @@ export interface AgentCreatePayload {
   definition_md: string;
   guardrails_md?: string;
   tools_allowed: string[];
+  model_id?: string;
   schedule?: AgentSchedule;
   tags?: string[];
 }
@@ -40,6 +42,7 @@ export interface AgentUpdatePayload {
   definition_md?: string;
   guardrails_md?: string;
   tools_allowed?: string[];
+  model_id?: string;
   schedule?: AgentSchedule;
   tags?: string[];
   status?: AgentStatus;

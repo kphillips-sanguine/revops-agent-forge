@@ -33,6 +33,7 @@ import Breadcrumbs from '../components/Breadcrumbs';
 import StatusBadge from '../components/StatusBadge';
 import ValidationPanel, { validateAgentMd } from '../components/ValidationPanel';
 import ExecutionHistoryTab from '../components/ExecutionHistoryTab';
+import ModelSelector from '../components/ModelSelector';
 import { useAgentStore } from '../stores/agentStore';
 import { mockExecutions } from '../mocks/executions';
 import type { AgentStatus } from '../types/agent';
@@ -88,6 +89,7 @@ export default function AgentDetailPage() {
   const [validationResults, setValidationResults] = useState<ReturnType<typeof validateAgentMd> | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
 
   useEffect(() => {
     if (agents.length === 0) fetchAgents();
@@ -102,6 +104,7 @@ export default function AgentDetailPage() {
   useEffect(() => {
     if (agent) {
       setEditedContent(agent.definition_md);
+      setSelectedModelId(agent.model_id || null);
     }
   }, [agent]);
 
@@ -398,6 +401,8 @@ export default function AgentDetailPage() {
           avgDuration={avgDuration}
           totalCost={totalCost}
           executionCount={agent.execution_count}
+          selectedModelId={selectedModelId}
+          onModelSelect={setSelectedModelId}
         />
       )}
 
@@ -478,6 +483,8 @@ interface DefinitionTabProps {
   avgDuration: number;
   totalCost: number;
   executionCount: number;
+  selectedModelId: string | null;
+  onModelSelect: (modelId: string) => void;
 }
 
 function DefinitionTab({
@@ -498,6 +505,8 @@ function DefinitionTab({
   avgDuration,
   totalCost,
   executionCount,
+  selectedModelId,
+  onModelSelect,
 }: DefinitionTabProps) {
   return (
     <div className="flex flex-col lg:flex-row gap-4">
@@ -554,6 +563,16 @@ function DefinitionTab({
           <span className="text-xs text-gray-600">
             {isEditing ? 'Edit mode' : 'Read-only'}
           </span>
+        </div>
+
+        {/* Model Selector */}
+        <div className="rounded-lg border border-card-border bg-zinc-900/50 px-3 py-2">
+          <ModelSelector
+            selectedModelId={selectedModelId}
+            onModelSelect={onModelSelect}
+            definitionMd={editedContent}
+            compact
+          />
         </div>
 
         {/* Monaco Editor */}

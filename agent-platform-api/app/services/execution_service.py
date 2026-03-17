@@ -79,8 +79,16 @@ async def run_agent(
     registry_rows = result.scalars().all()
     tool_registry = _tool_registry_to_dicts(registry_rows)
 
+    # Determine model from agent metadata
+    from app.runtime.md_parser import parse_agent_md as _parse_md
+    try:
+        _parsed = _parse_md(agent.definition_md)
+        _model_id = _parsed.get("metadata", {}).get("model", None)
+    except Exception:
+        _model_id = None
+
     # Run executor
-    executor = AgentExecutor(tool_registry=tool_registry)
+    executor = AgentExecutor(tool_registry=tool_registry, model_id=_model_id)
     exec_result = await executor.execute(
         agent_definition={
             "definition_md": agent.definition_md,

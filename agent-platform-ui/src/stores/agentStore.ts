@@ -33,6 +33,7 @@ function summaryToAgent(s: AgentSummaryResponse): Agent {
     definition_md: '',
     guardrails_md: null,
     tools_allowed: [],
+    model_id: null,
     schedule: null,
     tags: s.tags,
     created_by: s.created_by,

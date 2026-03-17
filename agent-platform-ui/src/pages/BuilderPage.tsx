@@ -14,6 +14,7 @@ import BuilderChat from '../components/builder/BuilderChat';
 import ToolBrowser from '../components/builder/ToolBrowser';
 import SimulationPanel from '../components/builder/SimulationPanel';
 import ValidationPanel, { validateAgentMd } from '../components/ValidationPanel';
+import ModelSelector from '../components/ModelSelector';
 import { useBuilderStore } from '../stores/builderStore';
 import { useAgentStore } from '../stores/agentStore';
 
@@ -24,6 +25,7 @@ export default function BuilderPage() {
 
   const [toolBrowserOpen, setToolBrowserOpen] = useState(false);
   const [simulationOpen, setSimulationOpen] = useState(false);
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [validationResults, setValidationResults] = useState<ReturnType<typeof validateAgentMd> | null>(null);
   const [splitPercent, setSplitPercent] = useState(40);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -128,6 +130,7 @@ export default function BuilderPage() {
       definition_md: currentDefinition,
       guardrails_md: null,
       tools_allowed: toolsAllowed,
+      model_id: selectedModelId,
       schedule: null,
       tags,
       created_by: 'kevin@sanguinebio.com',
@@ -248,6 +251,18 @@ export default function BuilderPage() {
           className="flex flex-col min-w-0"
           style={{ width: `${100 - splitPercent}%` }}
         >
+          {/* Model Selector */}
+          {currentDefinition && (
+            <div className="shrink-0 border-b border-card-border px-3 py-2">
+              <ModelSelector
+                selectedModelId={selectedModelId}
+                onModelSelect={setSelectedModelId}
+                definitionMd={currentDefinition}
+                compact
+              />
+            </div>
+          )}
+
           {/* Editor */}
           <div className="flex-1 min-h-0">
             {currentDefinition ? (

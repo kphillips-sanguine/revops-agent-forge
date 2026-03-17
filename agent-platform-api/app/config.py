@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     # External services
     ANTHROPIC_API_KEY: str = ""
+    GOOGLE_API_KEY: str = ""
     SLACK_BOT_TOKEN: str = ""
     N8N_BASE_URL: str = "http://localhost:5678"
     N8N_API_KEY: str = ""

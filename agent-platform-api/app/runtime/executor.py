@@ -1,4 +1,4 @@
-"""Core agent execution engine using the Anthropic Python SDK (messages.create with tools)."""
+"""Core agent execution engine — supports Anthropic and Google Gemini models."""
 
 import logging
 import time
@@ -10,6 +10,7 @@ from anthropic import Anthropic
 from app.config import settings
 from app.runtime.guardrails import STATIC_GUARDRAILS, inject_guardrails
 from app.runtime.md_parser import parse_agent_md
+from app.runtime.models import AVAILABLE_MODELS, DEFAULT_MODEL, get_model
 from app.runtime.output_filter import filter_output
 from app.runtime.prompt_builder import build_system_prompt
 from app.runtime.tool_loader import load_tools
@@ -19,14 +20,23 @@ logger = logging.getLogger(__name__)
 
 
 class AgentExecutor:
-    """Interprets Agent MD definitions and runs them via the Anthropic
-    messages API with a tool-calling loop."""
+    """Interprets Agent MD definitions and runs them via LLM APIs
+    (Anthropic or Google Gemini) with a tool-calling loop."""
 
     def __init__(
         self,
         tool_registry: list[dict[str, Any]],
+        model_id: str | None = None,
     ):
         self.tool_registry = tool_registry
+        self.model_id = model_id or DEFAULT_MODEL
+        self.model_info = get_model(self.model_id)
+        if self.model_info is None:
+            logger.warning("Unknown model '%s', falling back to %s", self.model_id, DEFAULT_MODEL)
+            self.model_id = DEFAULT_MODEL
+            self.model_info = get_model(DEFAULT_MODEL)
+
+        # Create Anthropic client (always needed as fallback)
         self.client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
     async def execute(
@@ -142,16 +152,12 @@ class AgentExecutor:
                     )
 
                 # Call Claude
-                create_kwargs: dict[str, Any] = {
-                    "model": "claude-sonnet-4-20250514",
-                    "max_tokens": max_tokens,
-                    "system": system_prompt,
-                    "messages": messages,
-                }
-                if claude_tools:
-                    create_kwargs["tools"] = claude_tools
-
-                response = self.client.messages.create(**create_kwargs)
+                response = self._call_llm(
+                    system_prompt=system_prompt,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    claude_tools=claude_tools,
+                )
 
                 llm_calls += 1
                 tokens_used += (
@@ -248,6 +254,41 @@ class AgentExecutor:
                 "tool_calls": tool_call_logs,
                 "duration_seconds": time.time() - start_time,
             }
+
+    def _call_llm(
+        self,
+        system_prompt: str,
+        messages: list[dict[str, Any]],
+        max_tokens: int,
+        claude_tools: list[dict[str, Any]],
+    ) -> Any:
+        """Call the configured LLM provider and return a response.
+
+        For Anthropic: uses the native SDK.
+        For Google: uses the Gemini wrapper that returns Anthropic-compatible objects.
+        """
+        assert self.model_info is not None
+
+        if self.model_info.provider == "google":
+            from app.runtime.gemini_client import create_message
+            return create_message(
+                model_id=self.model_info.model_id,
+                max_tokens=max_tokens,
+                system=system_prompt,
+                messages=messages,
+                tools=[t for t in claude_tools] if claude_tools else None,
+            )
+        else:
+            # Anthropic (default)
+            create_kwargs: dict[str, Any] = {
+                "model": self.model_info.model_id,
+                "max_tokens": max_tokens,
+                "system": system_prompt,
+                "messages": messages,
+            }
+            if claude_tools:
+                create_kwargs["tools"] = claude_tools
+            return self.client.messages.create(**create_kwargs)
 
     async def _execute_tool_call(
         self,

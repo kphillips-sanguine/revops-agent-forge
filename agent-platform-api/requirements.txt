@@ -10,3 +10,4 @@ passlib[bcrypt]==1.7.4
 httpx==0.28.1
 python-multipart==0.0.22
 anthropic==0.52.0
+google-genai==1.14.0
