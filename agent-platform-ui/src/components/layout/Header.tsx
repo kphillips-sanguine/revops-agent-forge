@@ -1,9 +1,11 @@
 import { useAuthStore } from '../../stores/authStore';
 import { User, LogOut } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export default function Header() {
   const { user, logout } = useAuthStore();
+  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const initials = user?.name
@@ -46,6 +48,7 @@ export default function Header() {
                 onClick={() => {
                   logout();
                   setMenuOpen(false);
+                  navigate('/login');
                 }}
                 className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-400 hover:bg-sidebar-hover hover:text-gray-200 transition-colors"
               >

@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import type { Agent, AgentStatus } from '../types/agent';
 import { mockAgents } from '../mocks/agents';
+import { listAgents } from '../api/agents';
+import type { AgentSummaryResponse } from '../api/agents';
 
 interface AgentFilters {
   status: AgentStatus | 'all';
@@ -22,6 +24,27 @@ interface AgentState {
   updateAgentDefinition: (id: string, definition_md: string) => void;
 }
 
+function summaryToAgent(s: AgentSummaryResponse): Agent {
+  return {
+    id: s.id,
+    name: s.name,
+    version: s.version,
+    status: s.status as AgentStatus,
+    definition_md: '',
+    guardrails_md: null,
+    tools_allowed: [],
+    schedule: null,
+    tags: s.tags,
+    created_by: s.created_by,
+    approved_by: null,
+    created_at: s.last_execution_at ?? new Date().toISOString(),
+    updated_at: s.last_execution_at ?? new Date().toISOString(),
+    last_execution_at: s.last_execution_at,
+    execution_count: s.execution_count,
+    estimated_cost: s.estimated_cost,
+  };
+}
+
 export const useAgentStore = create<AgentState>((set, get) => ({
   agents: [],
   isLoading: false,
@@ -32,12 +55,16 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     tags: [],
   },
 
-  fetchAgents: () => {
+  fetchAgents: async () => {
     set({ isLoading: true, error: null });
-    // Simulate async load from mock data
-    setTimeout(() => {
+    try {
+      const data = await listAgents();
+      set({ agents: data.map(summaryToAgent), isLoading: false });
+    } catch {
+      // Fallback to mock data if API is unavailable
+      console.warn('API unavailable, using mock data');
       set({ agents: mockAgents, isLoading: false });
-    }, 300);
+    }
   },
 
   setFilter: (newFilters) => {

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -20,7 +20,7 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-// Response interceptor — log errors
+// Response interceptor — handle errors and auto-logout on 401
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -29,6 +29,14 @@ apiClient.interceptors.response.use(
         `API Error [${error.response.status}]:`,
         error.response.data,
       );
+      // Auto-logout on 401 (expired/invalid token), except for login endpoint
+      if (
+        error.response.status === 401 &&
+        !error.config.url?.includes('/api/auth/login')
+      ) {
+        localStorage.removeItem('auth_token');
+        window.location.href = '/login';
+      }
     } else if (error.request) {
       console.error('API Error: No response received', error.request);
     } else {

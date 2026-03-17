@@ -1,12 +1,13 @@
-import uuid
 from collections.abc import AsyncGenerator
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Header, status
+from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import async_session_factory
 from app.schemas.auth import UserResponse
+from app.services.auth_service import decode_access_token, get_user_by_id
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -19,23 +20,53 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             raise
 
 
-# Mock current user for Phase B1. Will be replaced with real JWT validation in B3.
-_MOCK_USER = UserResponse(
-    id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
-    email="kevin@sanguinebio.com",
-    display_name="Kevin Phillips",
-    role="revops",
-    is_active=True,
-    created_at="2026-01-01T00:00:00Z",
-)
-
-
 async def get_current_user(
     authorization: Annotated[str | None, Header()] = None,
+    db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
-    """Mock auth dependency. Returns hardcoded admin user.
-    Will be replaced with real JWT validation in Phase B3."""
-    return _MOCK_USER
+    """Validate JWT token and return the authenticated user."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid authorization header",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token = authorization.removeprefix("Bearer ")
+
+    try:
+        payload = decode_access_token(token)
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user = await get_user_by_id(db, user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found or inactive",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return UserResponse(
+        id=user.id,
+        email=user.email,
+        display_name=user.display_name,
+        role=user.role,
+        is_active=user.is_active,
+        created_at=user.created_at,
+    )
 
 
 def require_role(*roles: str):
@@ -58,7 +89,7 @@ async def verify_api_key(
     x_api_key: Annotated[str | None, Header()] = None,
 ) -> str:
     """Verify API key for service-to-service calls.
-    Mock implementation for Phase B1 — accepts any non-empty key."""
+    Accepts any non-empty key for now."""
     if not x_api_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
