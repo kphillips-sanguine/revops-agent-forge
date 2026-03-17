@@ -6,5 +6,9 @@
 **/dist
 **/*.pyc
 .env
+.env.*
 *.md
 !README.md
+pgdata
+nul
+docker-compose.yml

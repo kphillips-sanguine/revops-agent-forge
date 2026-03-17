@@ -23,6 +23,7 @@ agent-platform-api/*.egg-info/
 # OS
 .DS_Store
 Thumbs.db
+nul
 
 # Docker
 pgdata/
