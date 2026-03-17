@@ -177,16 +177,19 @@ async def seed() -> None:
             select(User).where(User.id == ADMIN_USER_ID)
         )
         if existing.scalar_one_or_none() is None:
+            import os
+            default_pw = os.environ.get("ADMIN_PASSWORD", "AgentForge2026!")
             admin = User(
                 id=ADMIN_USER_ID,
                 email="kevin@sanguinebio.com",
                 display_name="Kevin Phillips",
                 role="revops",
                 is_active=True,
+                password_hash=_BcryptHelper.hash(default_pw),
             )
             session.add(admin)
             await session.flush()
-            print("Created admin user: kevin@sanguinebio.com (revops)")
+            print(f"Created admin user: kevin@sanguinebio.com (revops) — password: {default_pw}")
         else:
             print("Admin user already exists, skipping.")
 

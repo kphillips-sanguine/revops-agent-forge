@@ -19,6 +19,7 @@ class User(Base):
     role: Mapped[str] = mapped_column(
         String(20), nullable=False, default="user"
     )  # user | reviewer | admin | revops
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)

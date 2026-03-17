@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
+import bcrypt
 from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models.user import User
 from app.schemas.auth import TokenResponse, UserResponse
+
+
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+    return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
 
 
 def create_access_token(user: User) -> str:
@@ -39,10 +48,14 @@ async def authenticate_user(
     if not user.is_active:
         raise ValueError("Account is disabled")
 
-    # Dev mode: accept any password for seeded users
-    # Production would use passlib to verify hashed passwords
-    if settings.ENVIRONMENT != "development":
-        raise ValueError("Production auth not yet implemented")
+    # Verify password
+    if user.password_hash:
+        if not verify_password(password, user.password_hash):
+            raise ValueError("Invalid email or password")
+    elif settings.ENVIRONMENT == "development":
+        pass  # Dev mode: accept any password if no hash set
+    else:
+        raise ValueError("Invalid email or password")
 
     # Update last login
     user.last_login_at = datetime.now(timezone.utc)
